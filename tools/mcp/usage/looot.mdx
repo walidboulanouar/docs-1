@@ -1,0 +1,82 @@
+---
+title: looot MCP agent
+description: "Connect a Claude agent to looot's streamable-http MCP server to search, inspect and run 2,500+ data API endpoints with one agent token and one prepaid balance."
+keywords: [mcp, looot, data apis, enrichment, mcp server]
+---
+
+Using the [looot MCP server](https://docs.looot.ai) to create an Agent that can search a catalog of 2,500+ data API endpoints (work emails, company and people search, Google results, web pages, news, LinkedIn profiles), see the price before a call, and run it.
+
+looot bills a prepaid balance per call, and a failed call costs nothing. Searching the catalog and inspecting an endpoint are free. The example below only searches and inspects, so it spends nothing.
+
+```python looot_mcp.py
+import asyncio
+from datetime import timedelta
+from os import getenv
+
+from agno.agent import Agent
+from agno.models.anthropic import Claude
+from agno.tools.mcp import MCPTools
+from agno.tools.mcp.params import StreamableHTTPClientParams
+
+
+async def run_agent(message: str) -> None:
+    server_params = StreamableHTTPClientParams(
+        url="https://api.looot.ai/mcp",
+        headers={"Authorization": f"Bearer {getenv('LOOOT_TOKEN')}"},
+        timeout=timedelta(seconds=60),
+    )
+
+    async with MCPTools(
+        transport="streamable-http",
+        server_params=server_params,
+        include_tools=["search_catalog", "inspect", "run", "runs_get", "balance"],
+    ) as looot_mcp_server:
+        agent = Agent(
+            model=Claude(id="claude-sonnet-4-20250514"),
+            tools=[looot_mcp_server],
+            markdown=True,
+        )
+        await agent.aprint_response(message, stream=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(
+        run_agent(
+            "Find an endpoint that verifies an email address. "
+            "Inspect it and tell me its price per call. Do not run it."
+        )
+    )
+```
+
+## Prerequisites
+
+```shell
+uv pip install "agno[mcp]" anthropic
+```
+
+Create an agent token at [looot.ai](https://looot.ai/auth/sign-up): open Settings, then the Agent tokens tab, and tick the scopes `catalog.read`, `runs.read`, `runs.execute` and `usage.read`.
+
+```shell
+export ANTHROPIC_API_KEY=***
+export LOOOT_TOKEN=***
+```
+
+`run` spends money from the looot balance. New workspaces start at $0 and top up from $5. Drop `run` from `include_tools` to keep the agent read-only.
+
+## Tools
+
+| Tool | Cost | What it does |
+| ---- | ---- | ------------ |
+| `search_catalog` | Free | Search endpoints by the task you want done. |
+| `inspect` | Free | Show an endpoint's inputs, outputs and price. |
+| `run` | Per call | Run an endpoint. A failed call costs nothing. |
+| `runs_get` | Free | Fetch the status and result of a run. |
+| `balance` | Free | Show the prepaid balance. |
+
+The server exposes more tools, including `discover`, `runs_list` and `top_up`. The full list is in the [looot llms.txt](https://api.looot.ai/llms.txt).
+
+## Developer Resources
+
+- [looot documentation](https://docs.looot.ai)
+- [looot MCP repository](https://github.com/loootai/looot-mcp)
+- [Agno MCP overview](/tools/mcp/overview)
