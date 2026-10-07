@@ -2177,6 +2177,7 @@
                         "pages": [
                           "tools/mcp/usage/airbnb",
                           "tools/mcp/usage/github",
+                          "tools/mcp/usage/looot",
                           "tools/mcp/usage/notion",
                           "tools/mcp/usage/parallel",
                           "tools/mcp/usage/pipedream-auth",
